@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Сравнение симуляций трафика</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: #000;
+            color: #fff;
+            font-family: 'Orbitron', monospace;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        .main-controls {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+            padding: 20px 10px;
+            width: 100%;
+        }
+        
+        .header, .comparison-panel {
+            position: static;
+            transform: none;
+            width: 95%;
+            max-width: 1000px;
+            z-index: 1000;
+            background: rgba(0, 20, 40, 0.95);
+            padding: 15px 25px;
+            border-radius: 15px;
+            border: 1px solid rgba(0, 255, 255, 0.3);
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+        }
+
+        .header {
+             display: flex;
+            gap: 20px;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        .comparison-panel {
+            background: rgba(20, 0, 40, 0.95);
+            border: 1px solid rgba(255, 0, 255, 0.3);
+            box-shadow: 0 0 30px rgba(255, 0, 255, 0.2);
+            text-align: center;
+        }
+        
+        .comparison-title {
+            color: #f0f;
+            font-weight: 700;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+        
+        .comparison-stats {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+            font-size: 14px;
+        }
+        
+        .comparison-stats span {
+            color: #0ff;
+            font-weight: 700;
+        }
+        
+        .simulation-container {
+            display: flex;
+            flex-grow: 1; /* Allows container to fill space */
+            gap: 10px;
+            padding: 0 10px 10px 10px;
+        }
+        
+        .simulation {
+            flex: 1;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid rgba(0, 255, 255, 0.1);
+            border-radius: 15px;
+            overflow: hidden;
+        }
+        
+        .simulation canvas {
+            display: block;
+            width: 100%;
+            flex-grow: 1; /* Canvas fills the available vertical space */
+            background: radial-gradient(ellipse at center, #0a0a1a 0%, #000 100%);
+        }
+        
+        .simulation-title {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 20, 40, 0.9);
+            padding: 10px 20px;
+            border-radius: 10px;
+            border: 1px solid rgba(0, 255, 255, 0.3);
+            font-weight: 700;
+            z-index: 100;
+        }
+        
+        .stats-panel {
+            background: rgba(0, 20, 40, 0.95);
+            padding: 15px;
+            border-top: 1px solid rgba(0, 255, 255, 0.3);
+            text-align: center;
+            z-index: 200;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #0ff 0%, #0aa 100%);
+            color: #000;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 700;
+            font-family: 'Orbitron', monospace;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(0, 255, 255, 0.5);
+        }
+        
+        button.stop {
+            background: linear-gradient(135deg, #f44 0%, #a22 100%);
+            color: #fff;
+        }
+        
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        label {
+            color: #0ff;
+            font-size: 14px;
+            font-weight: 700;
+        }
+        
+        input[type="range"] {
+            width: 150px;
+            height: 8px;
+            background: rgba(0, 255, 255, 0.2);
+            border-radius: 4px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #0ff;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 10px #0ff;
+        }
+        
+        .stat-value {
+            color: #0ff;
+            font-weight: 700;
+            font-size: 24px;
+            text-shadow: 0 0 15px currentColor;
+        }
+        
+        .ai-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            background: #0f0;
+            border-radius: 50%;
+            animation: pulse 1s infinite;
+            margin-left: 10px;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.2); }
+        }
+        
+        .learning-status {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 20, 40, 0.9);
+            padding: 10px 15px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 0, 255, 0.3);
+            font-size: 12px;
+            color: #f0f;
+            z-index: 100;
+        }
+    </style>
+</head>
+<body>
+    <div class="main-controls">
+        <div class="header">
+            <div class="controls">
+                <button id="startStopBtn">▶️ Старт</button>
+                <button id="resetBtn">🔄 Сброс</button>
+                <div class="control-group">
+                    <label>🚗 Плотность: <span id="densityValue">50</span></label>
+                    <input type="range" id="density" min="10" max="300" value="50">
+                </div>
+            </div>
+        </div>
+        
+        <div class="comparison-panel">
+            <div class="comparison-title">📊 СРАВНЕНИЕ ЭФФЕКТИВНОСТИ</div>
+            <div class="comparison-stats">
+                <div>🏆 Лучший результат: <span id="bestResult">—</span></div>
+                <div>📈 ИИ улучшение: <span id="aiImprovement">0%</span></div>
+                <div>⚡️ Разница пропускной способности: <span id="throughputDiff">0</span> машин/мин</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="simulation-container">
+        <div class="simulation">
+            <div class="simulation-title">🚦 Обычные светофоры</div>
+            <canvas id="canvas1"></canvas>
+            <div class="stats-panel">
+                <div>🏁 Среднее время в пути: <span class="stat-value" id="avgTime1">0.0</span> сек</div>
+            </div>
+        </div>
+        
+        <div class="simulation">
+            <div class="simulation-title">🤖 ИИ светофоры <span class="ai-indicator"></span></div>
+            <div class="learning-status" id="learningStatus">Обучение: 0 итераций</div>
+            <canvas id="canvas2"></canvas>
+            <div class="stats-panel">
+                <div>🏁 Среднее время в пути: <span class="stat-value" id="avgTime2">0.0</span> сек</div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Global variables
+        let isRunning = false;
+        let trafficDensity = 50;
+        
+        // Simple neural network for AI training
+        class SimpleAI {
+            constructor() {
+                this.weights = {
+                    waitingCars: Math.random() - 0.5,
+                    oppositeWaiting: Math.random() - 0.5,
+                    currentTime: Math.random() - 0.5,
+                };
+                this.learningRate = 0.001;
+                this.iterations = 0;
+            }
+            
+            decide(waitingCars, oppositeWaiting, currentTime) {
+                const input = waitingCars * this.weights.waitingCars +
+                              oppositeWaiting * this.weights.oppositeWaiting +
+                              currentTime * this.weights.currentTime;
+                
+                return Math.sigmoid(input); // Output between 0 and 1
+            }
+            
+            learn(waitingCars, oppositeWaiting, error) {
+                this.iterations++;
+                
+                this.weights.waitingCars += this.learningRate * error * waitingCars;
+                this.weights.oppositeWaiting += this.learningRate * error * oppositeWaiting;
+                
+                // Normalize weights to prevent them from growing too large
+                Object.keys(this.weights).forEach(key => {
+                    this.weights[key] = Math.max(-1, Math.min(1, this.weights[key]));
+                });
+            }
+        }
+        
+        Math.sigmoid = function(x) {
+            return 1 / (1 + Math.exp(-x));
+        };
+        
+        // Traffic Simulation class
+        class TrafficSimulation {
+            constructor(canvasId, isAI = false) {
+                this.canvas = document.getElementById(canvasId);
+                this.ctx = this.canvas.getContext('2d');
+                this.isAI = isAI;
+                this.ai = isAI ? new SimpleAI() : null;
+                
+                this.cars = [];
+                this.lights = [];
+                this.stats = {
+                    passedCars: 0,
+                    totalTripTime: 0
+                };
+                
+                this.lastTime = Date.now();
+                this.startTime = Date.now();
+                this.spawnTimer = 0;
+
+                if (this.isAI) {
+                    this.aiController = {
+                        phase: 'horizontal', // 'horizontal' or 'vertical'
+                        timer: 0,
+                        greenDuration: 7000,
+                        yellowDuration: 1500,
+                        lastError: 0,
+                    };
+                }
+
+                this.resizeCanvas();
+                window.addEventListener('resize', () => this.resizeCanvas());
+            }
+
+            resizeCanvas() {
+                 const container = this.canvas.parentElement;
+                this.canvas.width = container.clientWidth;
+                this.canvas.height = container.clientHeight - container.querySelector('.stats-panel').offsetHeight;
+                this.setupRoads();
+                this.setupLights();
+            }
+            
+            setupRoads() {
+                this.roads = {
+                    horizontal: { y: this.canvas.height / 2, width: this.canvas.width, laneWidth: 40 },
+                    vertical: { x: this.canvas.width / 2, height: this.canvas.height, laneWidth: 40 }
+                };
+                this.intersection = { x: this.canvas.width / 2, y: this.canvas.height / 2, size: 80 };
+            }
+            
+            setupLights() {
+                this.lights = [
+                    new TrafficLight(this.intersection.x - this.intersection.size, this.intersection.y, 'horizontal'),
+                    new TrafficLight(this.intersection.x + this.intersection.size, this.intersection.y, 'horizontal'),
+                    new TrafficLight(this.intersection.x, this.intersection.y - this.intersection.size, 'vertical'),
+                    new TrafficLight(this.intersection.x, this.intersection.y + this.intersection.size, 'vertical')
+                ];
+                
+                // Initial light state
+                this.lights.forEach(light => {
+                    if (this.isAI) {
+                         light.state = light.direction === this.aiController.phase ? 'green' : 'red';
+                    } else {
+                         light.state = light.direction === 'horizontal' ? 'green' : 'red';
+                    }
+                });
+            }
+            
+            spawnCar() {
+                if (this.cars.length >= trafficDensity) return;
+                
+                const spawn = Math.random();
+                let pos;
+                
+                if (spawn < 0.25) pos = { x: 0, y: this.roads.horizontal.y - 20, direction: 'right' };
+                else if (spawn < 0.5) pos = { x: this.canvas.width, y: this.roads.horizontal.y + 20, direction: 'left' };
+                else if (spawn < 0.75) pos = { x: this.roads.vertical.x - 20, y: 0, direction: 'down' };
+                else pos = { x: this.roads.vertical.x + 20, y: this.canvas.height, direction: 'up' };
+                
+                const tooClose = this.cars.some(car => Math.hypot(car.x - pos.x, car.y - pos.y) < 80);
+                
+                if (!tooClose) {
+                    this.cars.push(new Car(pos.x, pos.y, pos.direction));
+                }
+            }
+            
+            update(dt) {
+                if (!isRunning) return;
+                
+                this.spawnTimer += dt;
+                if (this.spawnTimer > 3000 / Math.sqrt(trafficDensity)) {
+                    this.spawnCar();
+                    this.spawnTimer = 0;
+                }
+                
+                // Centralized light control
+                if (this.isAI) {
+                    this.updateAILights(dt);
+                } else {
+                    this.lights.forEach(light => light.update(dt));
+                }
+                
+                this.cars.forEach(car => car.update(dt, this.cars, this.lights));
+                
+                this.cars = this.cars.filter(car => {
+                    const outOfBounds = car.x < -50 || car.x > this.canvas.width + 50 || car.y < -50 || car.y > this.canvas.height + 50;
+                    if (outOfBounds) {
+                        this.stats.passedCars++;
+                        this.stats.totalTripTime += Date.now() - car.startTime;
+                    }
+                    return !outOfBounds;
+                });
+            }
+
+            updateAILights(dt) {
+                const ctrl = this.aiController;
+                ctrl.timer += dt;
+
+                const totalPhaseDuration = ctrl.greenDuration + ctrl.yellowDuration;
+
+                if (ctrl.timer > totalPhaseDuration) {
+                    ctrl.timer = 0;
+
+                    // AI LEARNING. Learn from the result of the phase that just ended.
+                    const carsThatWaited = this.getWaitingCars(ctrl.phase === 'horizontal' ? 'vertical' : 'horizontal');
+                    const carsThatPassed = this.getWaitingCars(ctrl.phase);
+                    ctrl.lastError = carsThatWaited - carsThatPassed; // Positive error means too many were waiting
+                    this.ai.learn(carsThatWaited, carsThatPassed, ctrl.lastError);
+                    
+                    // Switch phase
+                    ctrl.phase = ctrl.phase === 'horizontal' ? 'vertical' : 'horizontal';
+
+                    // AI DECISION. Decide duration for the new phase.
+                    const waitingForNewPhase = this.getWaitingCars(ctrl.phase);
+                    const waitingForOtherPhase = this.getWaitingCars(ctrl.phase === 'horizontal' ? 'vertical' : 'horizontal');
+                    
+                    const decision = this.ai.decide(waitingForNewPhase, waitingForOtherPhase, 0);
+                    ctrl.greenDuration = 5000 + (decision * 8000); // 5s to 13s green time
+                }
+
+                // Set light states based on controller
+                const isYellowTime = ctrl.timer >= ctrl.greenDuration;
+                this.lights.forEach(light => {
+                    if (light.direction === ctrl.phase) {
+                        light.state = isYellowTime ? 'yellow' : 'green';
+                    } else {
+                        light.state = 'red';
+                    }
+                });
+            }
+            
+            draw() {
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                this.drawRoads();
+                this.lights.forEach(light => light.draw(this.ctx));
+                this.cars.forEach(car => car.draw(this.ctx));
+            }
+            
+            drawRoads() {
+                const ctx = this.ctx;
+                ctx.fillStyle = '#1a1a1a';
+                ctx.fillRect(0, this.roads.horizontal.y - 40, this.canvas.width, 80);
+                ctx.fillRect(this.roads.vertical.x - 40, 0, 80, this.canvas.height);
+                
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([20, 15]);
+                
+                ctx.beginPath();
+                ctx.moveTo(0, this.roads.horizontal.y);
+                ctx.lineTo(this.intersection.x - 40, this.roads.horizontal.y);
+                ctx.moveTo(this.intersection.x + 40, this.roads.horizontal.y);
+                ctx.lineTo(this.canvas.width, this.roads.horizontal.y);
+                ctx.stroke();
+                
+                ctx.beginPath();
+                ctx.moveTo(this.roads.vertical.x, 0);
+                ctx.lineTo(this.roads.vertical.x, this.intersection.y - 40);
+                ctx.moveTo(this.roads.vertical.x, this.intersection.y + 40);
+                ctx.lineTo(this.roads.vertical.x, this.canvas.height);
+                ctx.stroke();
+                
+                ctx.setLineDash([]);
+            }
+            
+            getAverageTime() {
+                return this.stats.passedCars > 0 ? (this.stats.totalTripTime / this.stats.passedCars / 1000).toFixed(1) : '0.0';
+            }
+            
+            getThroughput() {
+                const elapsedMinutes = (Date.now() - this.startTime) / 60000;
+                return elapsedMinutes > 0.1 ? (this.stats.passedCars / elapsedMinutes).toFixed(1) : '0.0';
+            }
+
+            getWaitingCars(direction) {
+                let count = 0;
+                this.cars.forEach(car => {
+                    if (car.speed < 1) {
+                         const isHorizontal = car.direction === 'left' || car.direction === 'right';
+                         const isVertical = car.direction === 'up' || car.direction === 'down';
+                         if (direction === 'horizontal' && isHorizontal) count++;
+                         else if (direction === 'vertical' && isVertical) count++;
+                    }
+                });
+                return count;
+            }
+            
+            reset() {
+                this.cars = [];
+                this.stats = { passedCars: 0, totalTripTime: 0 };
+                this.startTime = Date.now();
+                this.setupLights();
+                if (this.isAI) {
+                    this.ai = new SimpleAI();
+                    this.aiController.phase = 'horizontal';
+                    this.aiController.timer = 0;
+                }
+            }
+        }
+        
+        // Traffic Light class
+        class TrafficLight {
+            constructor(x, y, direction) {
+                this.x = x;
+                this.y = y;
+                this.direction = direction;
+                this.state = 'red';
+                this.timer = Math.random() * 8000; // Randomize start for non-AI
+                this.fixedGreenDuration = 7000;
+                this.fixedYellowDuration = 1500;
+            }
+            
+            // Only for non-AI lights
+            update(dt) {
+                this.timer += dt;
+                const totalCycle = this.fixedGreenDuration + this.fixedYellowDuration + this.fixedGreenDuration + this.fixedYellowDuration;
+                
+                const timeInCycle = this.timer % totalCycle;
+
+                if (this.direction === 'horizontal') {
+                    if (timeInCycle < this.fixedGreenDuration) this.state = 'green';
+                    else if (timeInCycle < this.fixedGreenDuration + this.fixedYellowDuration) this.state = 'yellow';
+                    else this.state = 'red';
+                } else { // vertical
+                    if (timeInCycle < this.fixedGreenDuration + this.fixedYellowDuration) this.state = 'red';
+                    else if (timeInCycle < totalCycle - this.fixedYellowDuration) this.state = 'green';
+                    else this.state = 'yellow';
+                }
+            }
+            
+            draw(ctx) {
+                const colors = { red: '#ff0044', yellow: '#ffaa00', green: '#00ff44' };
+                const lightColor = colors[this.state];
+
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                if(this.direction === 'vertical') ctx.rotate(Math.PI / 2);
+
+                // Pole
+                ctx.fillStyle = '#333';
+                ctx.fillRect(-5, 0, 10, 20);
+
+                // Light
+                ctx.beginPath();
+                ctx.arc(0, 0, 10, 0, Math.PI * 2);
+                ctx.fillStyle = lightColor;
+                ctx.shadowBlur = 20;
+                ctx.shadowColor = lightColor;
+                ctx.fill();
+                ctx.shadowBlur = 0;
+                ctx.restore();
+            }
+        }
+        
+        // Car class
+        class Car {
+            constructor(x, y, direction) {
+                this.x = x;
+                this.y = y;
+                this.direction = direction;
+                this.speed = 0;
+                this.maxSpeed = 15 + Math.random() * 5;
+                this.acceleration = 0.5;
+                this.deceleration = 3;
+                this.width = 25;
+                this.height = 15;
+                this.color = `hsl(${Math.random() * 360}, 80%, 60%)`;
+                this.startTime = Date.now();
+            }
+            
+            update(dt, cars, lights) {
+                const ahead = this.checkAhead(cars, lights);
+                
+                if (ahead.obstacle) {
+                    this.speed = Math.max(0, this.speed - this.deceleration * dt * 0.05);
+                } else {
+                    this.speed = Math.min(this.maxSpeed, this.speed + this.acceleration * dt * 0.05);
+                }
+                
+                const pixelSpeed = this.speed * dt * 0.04;
+                if (this.direction === 'right') this.x += pixelSpeed;
+                else if (this.direction === 'left') this.x -= pixelSpeed;
+                else if (this.direction === 'down') this.y += pixelSpeed;
+                else if (this.direction === 'up') this.y -= pixelSpeed;
+            }
+            
+            checkAhead(cars, lights) {
+                const safeDistance = 40;
+                
+                for (let car of cars) {
+                    if (car === this) continue;
+                    if (this.direction === car.direction && Math.abs(this.direction === 'left' || this.direction === 'right' ? this.y - car.y : this.x - car.x) < 10) {
+                        const dist = Math.hypot(this.x - car.x, this.y - car.y);
+                        const isCarAhead = (this.direction === 'right' && car.x > this.x) || (this.direction === 'left' && car.x < this.x) || (this.direction === 'down' && car.y > this.y) || (this.direction === 'up' && car.y < this.y);
+                        if (isCarAhead && dist < safeDistance) return { obstacle: true };
+                    }
+                }
+                
+                for (let light of lights) {
+                    const isMyLight = (light.direction === 'horizontal' && (this.direction === 'left' || this.direction === 'right')) || (light.direction === 'vertical' && (this.direction === 'up' || this.direction === 'down'));
+                    if (isMyLight && light.state !== 'green') {
+                         const dist = Math.hypot(this.x - light.x, this.y - light.y);
+                         if (dist < safeDistance + 20) return { obstacle: true };
+                    }
+                }
+                return { obstacle: false };
+            }
+            
+            draw(ctx) {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                
+                let angle = 0;
+                if (this.direction === 'left') angle = Math.PI;
+                else if (this.direction === 'down') angle = Math.PI / 2;
+                else if (this.direction === 'up') angle = -Math.PI / 2;
+                ctx.rotate(angle);
+                
+                ctx.fillStyle = this.color;
+                ctx.fillRect(-this.width/2, -this.height/2, this.width, this.height);
+                
+                ctx.fillStyle = 'rgba(0, 0, 50, 0.7)';
+                ctx.fillRect(-this.width/2 + 3, -this.height/2, this.width - 8, this.height);
+
+                ctx.restore();
+            }
+        }
+        
+        // --- Initialization ---
+        const simulation1 = new TrafficSimulation('canvas1', false);
+        const simulation2 = new TrafficSimulation('canvas2', true);
+        
+        function animate() {
+            const now = Date.now();
+            const dt = now - simulation1.lastTime;
+            
+            simulation1.update(dt);
+            simulation2.update(dt);
+            simulation1.lastTime = now;
+            simulation2.lastTime = now;
+            
+            simulation1.draw();
+            simulation2.draw();
+            
+            // Update UI
+            document.getElementById('avgTime1').textContent = simulation1.getAverageTime();
+            document.getElementById('avgTime2').textContent = simulation2.getAverageTime();
+            
+            if (simulation2.ai) {
+                 document.getElementById('learningStatus').textContent = `Обучение: ${simulation2.ai.iterations} итераций`;
+            }
+            
+            // Comparison stats
+            const avg1 = parseFloat(simulation1.getAverageTime());
+            const avg2 = parseFloat(simulation2.getAverageTime());
+            const tp1 = parseFloat(simulation1.getThroughput());
+            const tp2 = parseFloat(simulation2.getThroughput());
+            
+            if (avg1 > 0 && avg2 > 0) {
+                document.getElementById('bestResult').textContent = avg1 < avg2 ? 'Обычный' : 'ИИ';
+                const improvement = ((avg1 - avg2) / avg1 * 100);
+                document.getElementById('aiImprovement').textContent = improvement.toFixed(1) + '%';
+                const throughputDiff = tp2 - tp1;
+                document.getElementById('throughputDiff').textContent = throughputDiff.toFixed(1);
+            }
+            
+            requestAnimationFrame(animate);
+        }
+        
+        // Event Listeners
+        document.getElementById('startStopBtn').addEventListener('click', () => {
+            isRunning = !isRunning;
+            const btn = document.getElementById('startStopBtn');
+            btn.textContent = isRunning ? '⏸️ Стоп' : '▶️ Старт';
+            btn.classList.toggle('stop', isRunning);
+        });
+        
+        document.getElementById('resetBtn').addEventListener('click', () => {
+            simulation1.reset();
+            simulation2.reset();
+        });
+        
+        document.getElementById('density').addEventListener('input', (e) => {
+            trafficDensity = parseInt(e.target.value);
+            document.getElementById('densityValue').textContent = trafficDensity;
+        });
+        
+        // Start animation
+        animate();
+
+    </script>
+</body>
+</html>
