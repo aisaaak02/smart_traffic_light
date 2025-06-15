@@ -1,5 +1,8 @@
 📘 AI Usage Log
 
+Project Overview
+This project is a simulation demonstrating the difference between regular traffic lights and AI-powered traffic lights. The goal is to showcase how Artificial Intelligence can optimize traffic flow by adapting signal timing based on real-time data.
+
 🛠️ AI Tools Used:
 - Claude
 - Gemini
